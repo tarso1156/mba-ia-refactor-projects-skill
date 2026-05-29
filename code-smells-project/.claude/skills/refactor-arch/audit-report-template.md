@@ -150,6 +150,4 @@ Recommendation: Remover dados sensíveis do health check ou proteger com auth.
 ================================
 Total: 14 findings
 ================================
-
-Phase 2 complete. Proceed with refactoring (Phase 3)? [y/n]
 ```

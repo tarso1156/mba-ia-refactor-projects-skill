@@ -100,12 +100,12 @@ Consulte `project-analysis.md` para heurísticas detalhadas de detecção.
 
 4. **Gerar relatório** — siga o template em `audit-report-template.md`
 
-5. **Salvar relatório** — crie o diretório `reports/` na raiz do projeto (se não existir) e salve o relatório como `reports/audit-report-<N>.md`, onde `<N>` é um número sequencial (1 para o primeiro projeto, 2 para o segundo, etc.). O relatório salvo deve ser idêntico ao apresentado ao usuário.
+5. **Salvar relatório** — volte uma pasta e crie o diretório `reports/` na pasta pai do projeto (se não existir) e salve o relatório como `reports/audit-report-1.md`, O relatório salvo deve ser idêntico ao apresentado ao usuário.
 
 6. **PAUSAR e pedir confirmação** — apresente o relatório e pergunte:
 
 ```
-Phase 2 complete. Proceed with refactoring (Phase 3)? [y/n]
+Fase 2 concluída. Prosseguir com a refatoração (Fase 3)? [s/n]
 ```
 
 **NÃO prossiga para Fase 3 sem confirmação explícita do usuário.**
@@ -118,7 +118,7 @@ Siga exatamente o template em `audit-report-template.md`. O relatório deve cont
 - Summary com contagem por severidade
 - Lista de findings detalhados (arquivo, linha, descrição, impacto, recomendação)
 - Total de findings
-- Relatório salvo em `reports/audit-report-<N>.md`
+- Relatório salvo em `../reports/audit-report-1.md`
 - Pergunta de confirmação
 
 ---
