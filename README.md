@@ -144,6 +144,57 @@ Documentar os achados na seção "Análise Manual" do seu `README.md`
 
 > **Por que 3 projetos?** Dois são Python/Flask (com níveis de organização diferentes) e um é Node.js/Express. Sua skill precisa funcionar nos 3 para provar que é verdadeiramente agnóstica de tecnologia — lidando tanto com código completamente desestruturado quanto com projetos que já possuem alguma separação de camadas.
 
+---
+
+### 1.1. Resultado da Análise Manual
+
+Aqui estão documentados os problemas identificados nos projetos abaixo:
+
+#### 1.1.1. Problemas encontrados no Projeto `code-smells-project/`
+
+| # | Severidade | Problema | Descrição |
+|---|------------|----------|-----------|
+| 1 | **CRITICAL** | SQL Injection | Concatenação direta de strings em todas as queries SQL. Login bypassável com `' OR 1=1 --`. |
+| 2 | **CRITICAL** | Execução arbitrária de SQL | Endpoint `/admin/query` aceita qualquer SQL via POST sem autenticação. |
+| 3 | **HIGH** | Senhas em texto plano | Senhas gravadas sem hash. Endpoint `GET /usuarios` retorna todas as senhas. |
+| 4 | **HIGH** | Zero autenticação/autorização | Nenhum endpoint exige autenticação. Qualquer um pode criar admin, deletar dados ou resetar o banco. |
+| 5 | **MEDIUM** | Queries N+1 | Listagem de pedidos executa 1 + N + N queries (pedidos, itens, produtos). |
+| 6 | **MEDIUM** | Debug mode ativo | `DEBUG = True` expõe stack traces e Bind em `0.0.0.0`. |
+| 7 | **LOW** | SECRET_KEY hardcoded | Chave fixa no código-fonte. Permite forjar tokens se sessions/JWT forem usados. |
+| 8 | **LOW** | Health check vaza secrets | `/health` retorna `secret_key`, `debug` e `db_path` sem autenticação. |
+
+---
+
+#### 1.1.2. Problemas encontrados no Projeto `ecommerce-api-legacy/`
+
+| # | Severidade | Problema | Descrição |
+|---|------------|----------|-----------|
+| 1 | **CRITICAL** | Credenciais hardcoded | Senha de banco, chave de gateway de pagamento e credenciais SMTP expostas no código-fonte. |
+| 2 | **CRITICAL** | Hash de senhas inseguro | Função customizada usa repetição de Base64 reversível ao invés de bcrypt/argon2. Senhas trivialmente recuperáveis. |
+| 3 | **HIGH** | Zero autenticação/autorização | Nenhum endpoint exige auth. Rotas admin (`/api/admin/financial-report`) e DELETE de usuários estão abertas. |
+| 4 | **HIGH** | Nenhuma validação de entrada | Body params (nome, email, cartão) usados diretamente sem sanitização ou validação. |
+| 5 | **MEDIUM** | Delete sem cascata | Remoção de usuário não limpa matrículas nem pagamentos, deixando dados órfãos. |
+| 6 | **MEDIUM** | Logs sensíveis no console | Número do cartão e chave do gateway impressos via `console.log` em produção. |
+| 7 | **LOW** | Nenhum middleware de segurança | Sem CORS restritivo ou limite de tamanho de payload. |
+| 8 | **LOW** | Mensagens de erro genéricas | Erros retornam strings fixas sem contexto, dificultando debugging mas sem proteger dados. |
+
+---
+
+#### 1.1.3. Problemas encontrados no Projeto `task-manager-api/`
+
+| # | Severidade | Problema | Descrição |
+|---|------------|----------|-----------|
+| 1 | **CRITICAL** | Senhas com MD5 sem salt | Hash de senhas usa `hashlib.md5()` sem salt. MD5 é criptograficamente quebrado via rainbow tables. |
+| 2 | **CRITICAL** | Credenciais hardcoded | Email/senha SMTP e SECRET_KEY fixos no código-fonte. |
+| 3 | **HIGH** | Auth fake | Login retorna token hardcoded (`fake-jwt-token-{id}`). Nenhuma rota valida token real. |
+| 4 | **HIGH** | Senha exposta no JSON | Método `to_dict()` do User inclui campo `password` no retorno da API. |
+| 5 | **MEDIUM** | SQL Injection em busca | Filtro de busca usa f-string em `LIKE` (`f'%{query}%'`), vulnerável a injection. |
+| 6 | **MEDIUM** | Debug mode em produção | `debug=True` e `host='0.0.0.0'` expõem stack traces e abrem para todas as interfaces. |
+| 7 | **LOW** | Validação de modelo ignorada | Métodos de validação nos models existem mas não são chamados nas rotas. |
+| 8 | **LOW** | Lógica duplicada | Cálculo de tarefas atrasadas duplicado entre rotas de tasks e relatórios. |
+
+---
+
 ### 2. Criação da Skill
 
 Agora que você conhece os problemas, crie uma skill que os detecte, gere um relatório de auditoria e corrija automaticamente.
