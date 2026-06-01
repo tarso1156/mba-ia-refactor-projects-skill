@@ -1,5 +1,6 @@
 .env
 node_modules/
+.omc
 
 # Python
 __pycache__/

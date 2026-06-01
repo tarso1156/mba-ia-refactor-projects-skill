@@ -100,7 +100,7 @@ Consulte `project-analysis.md` para heurísticas detalhadas de detecção.
 
 4. **Gerar relatório** — siga o template em `audit-report-template.md`
 
-5. **Salvar relatório** — volte uma pasta e crie o diretório `reports/` na pasta pai do projeto (se não existir) e salve o relatório como `reports/audit-report-1.md`, O relatório salvo deve ser idêntico ao apresentado ao usuário.
+5. **Salvar relatório** — volte uma pasta e crie o diretório `reports/` na pasta pai do projeto (se não existir) e salve o relatório como `reports/audit-report-1.md` (sobreescreva o arquivo, caso já exista), O relatório salvo deve ser idêntico ao apresentado ao usuário, salve mesmo sem, encontrar algum problema.
 
 6. **PAUSAR e pedir confirmação** — apresente o relatório e pergunte:
 
@@ -125,7 +125,7 @@ Siga exatamente o template em `audit-report-template.md`. O relatório deve cont
 
 ## FASE 3 — Refatoração
 
-**Objetivo:** Reestruturar para o padrão MVC, validar que funciona.
+**Objetivo:** Reestruturar com base no relatório gerado para o padrão MVC, validar que funciona.
 
 ### Passos
 

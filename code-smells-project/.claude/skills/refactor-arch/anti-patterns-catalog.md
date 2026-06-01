@@ -281,6 +281,88 @@ if bcrypt.checkpw(senha.encode(), hashed):
     # login OK
 ```
 
+### C-06: Dependência Não Declarada no Manifest
+
+**Severidade:** CRITICAL
+**Prioridade de resolução:** 1ª — resolver imediatamente. App crasha ao iniciar sem a dependência.
+
+**Sinais de detecção:**
+- `import X` no código mas `X` ausente de requirements.txt / package.json
+- ImportError ou ModuleNotFoundError em runtime
+- Dependência importada transitivamente (funciona em dev por estar instalada como sub-dep) mas não declarada explicitamente
+- Biblioteca usada em produção (auth, crypto, DB driver) mas apenas em dev dependencies
+
+**Descrição:** Código importa pacote que não está declarado no arquivo de dependências do projeto.
+**Impacto:** App crasha em fresh install. CI/CD falha. Deploys quebram.
+
+**Como resolver:**
+1. Comparar todos `import` do código contra requirements.txt / package.json.
+2. Adicionar cada dependência usada com versão fixa (ex: `PyJWT==2.10.1`).
+3. Testar fresh install regularmente: `pip install -r requirements.txt` em env limpo.
+4. Se Python: usar `pip freeze > requirements.txt` como referência, depois limpar sub-deps.
+
+**Antes:**
+```python
+# middlewares/auth.py
+import jwt  # PyJWT NÃO está em requirements.txt
+```
+
+**Depois:**
+```txt
+# requirements.txt
+flask==3.1.1
+flask-cors==5.0.1
+PyJWT==2.10.1
+```
+
+---
+
+### C-07: Validação de Config Definida Mas Nunca Invocada
+
+**Severidade:** CRITICAL
+**Prioridade de resolução:** 1ª — resolver junto com C-02 (credenciais). Check que não roda = mesmo efeito que não existir.
+
+**Sinais de detecção:**
+- Método `Config.validate()` ou `validate_config()` definido mas nunca chamado
+- Checks de segurança em funções não invocadas no boot
+- `if os.environ.get('ENV') == 'production':` guards dentro de funções não executadas
+- Testes que testam Config.validate() mas create_app() não o chama
+
+**Descrição:** Validação de configuração de segurança (SECRET_KEY, DATABASE_URL, etc.) implementada mas nunca invocada no entry point da aplicação.
+**Impacto:** Produção roda com valores default inseguros. Falsa sensação de segurança.
+
+**Como resolver:**
+1. Chamar `Config.validate()` na primeira linha de `create_app()` ou no módulo config com um valor padrão para teste.
+2. validate() deve raise RuntimeError se segredos obrigatórios faltam em produção.
+3. Adicionar teste que verifica que validate é chamado durante boot.
+
+**Antes:**
+```python
+# config/settings.py
+class Config:
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-key-change-in-prod')
+
+    @classmethod
+    def validate(cls):
+        if os.environ.get('FLASK_ENV') == 'production' and cls.SECRET_KEY == 'dev-key-change-in-prod':
+            raise RuntimeError("SECRET_KEY must be set in production")
+    # NUNCA CHAMADO!
+
+# app.py
+def create_app():
+    app = Flask(__name__)
+    app.config["SECRET_KEY"] = Config.SECRET_KEY  # usa default silenciosamente
+```
+
+**Depois:**
+```python
+# app.py
+def create_app():
+    Config.validate()  # PRIMEIRA LINHA — fail fast
+    app = Flask(__name__)
+    app.config["SECRET_KEY"] = Config.SECRET_KEY
+```
+
 ---
 
 ## HIGH
@@ -513,6 +595,105 @@ class PedidoController:
         return self.model.criar(dados["usuario_id"], itens, total)
 ```
 
+### H-05: Conexão de Banco Global Mutável (Thread Safety)
+
+**Severidade:** HIGH
+**Prioridade de resolução:** 2ª — resolver junto com infraestrutura de DB. Causa crashes e corrupção sob carga.
+
+**Sinais de detecção:**
+- Variável global mutável para conexão de banco: `_db = None`, `_connection = None`
+- `check_same_thread=False` em SQLite sem lock complementar
+- Singleton de conexão sem thread-local storage
+- Flask `g` não utilizado para scoped connections
+
+**Descrição:** Conexão de banco armazenada em variável global mutável compartilhada entre threads sem sincronização.
+**Impacto:** Race conditions, dados corrompidos, crashes sob carga concorrente.
+
+**Como resolver:**
+1. Usar `flask.g` para connection per-request (cria no `before_request`, fecha no `teardown`).
+2. Ou usar `threading.local()` para thread-local connections.
+3. Evitar `check_same_thread=False` — se necessário, garantir locking explícito.
+
+**Antes:**
+```python
+# PERIGOSO — global mutável
+_db_connection = None
+
+def get_db():
+    global _db_connection
+    if _db_connection is None:
+        _db_connection = sqlite3.connect('db.db', check_same_thread=False)
+    return _db_connection
+```
+
+**Depois:**
+```python
+# SEGURO — scoped per-request via Flask g
+from flask import g
+
+def get_db():
+    if 'db' not in g:
+        g.db = sqlite3.connect('database.db')
+        g.db.row_factory = sqlite3.Row
+    return g.db
+
+def close_db(e=None):
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
+```
+
+---
+
+### H-06: Login sem Emissão de Token
+
+**Severidade:** HIGH
+**Prioridade de resolução:** 2ª — resolver junto com H-01 (auth). Login que não emite token é autenticação inútil.
+
+**Sinais de detecção:**
+- Endpoint `/login` que apenas verifica credenciais e retorna dados do usuário
+- Ausência de geração de JWT ou session token no fluxo de login
+- Login retorna `200 OK` sem `token`, `access_token` ou `session_id`
+- Middleware de auth não existe ou não valida token algum
+
+**Descrição:** Endpoint de login verifica credenciais mas não emite token de sessão. Demais endpoints não validam identidade.
+**Impacto:** Login é operação sem efeito — nada protege os demais endpoints. Sistema de autenticação está incompleto.
+
+**Como resolver:**
+1. Login deve gerar JWT token assinado com `SECRET_KEY` e prazo de expiração.
+2. Retornar `{"token": "<jwt>"}` na resposta de login.
+3. Middleware `auth_required` deve validar token em cada request protegido.
+4. Endpoints de escrita (POST, PUT, DELETE) devem exigir token válido.
+
+**Antes:**
+```python
+# INCOMPLETO — verifica mas não emite token
+@bp.route('/login', methods=['POST'])
+def login():
+    dados = request.get_json()
+    usuario = controller.login(dados['email'], dados['senha'])
+    return _api_ok(usuario, message='Login OK')  # sem token!
+```
+
+**Depois:**
+```python
+# COMPLETO — emite JWT
+import jwt
+from datetime import datetime, timedelta
+
+@bp.route('/login', methods=['POST'])
+def login():
+    dados = request.get_json()
+    usuario = controller.login(dados['email'], dados['senha'])
+    token = jwt.encode(
+        {'user_id': usuario['id'], 'tipo': usuario['tipo'],
+         'exp': datetime.utcnow() + timedelta(hours=24)},
+        Config.SECRET_KEY,
+        algorithm='HS256'
+    )
+    return _api_ok({'token': token, 'usuario': usuario})
+```
+
 ---
 
 ## MEDIUM
@@ -526,6 +707,7 @@ class PedidoController:
 - Queries SQL dentro de loops: `for item in items: db.execute("SELECT ...")`
 - Múltiplas queries relacionadas executadas sequencialmente quando poderiam ser uma
 - Acesso lazy a relacionamentos dentro de loops
+- Mesma entidade buscada 2+ vezes no mesmo loop (ex: validação + uso)
 
 **Descrição:** Padrão N+1 onde 1 query busca N registros e depois N queries buscam dados relacionados.
 **Impacto:** Performance degrada linearmente com o volume de dados.
@@ -715,6 +897,200 @@ def buscar_por_id(self, produto_id):
 
 ---
 
+### M-05: Lógica de Negócio no Model
+
+**Severidade:** MEDIUM
+**Prioridade de resolução:** 3ª — resolver junto com separação MVC. Model deve ser data-only.
+
+**Sinais de detecção:**
+- Model methods com cálculos, regras de negócio ou condicionais complexas
+- Model importa Config ou constantes de negócio (tiers de desconto, categorias)
+- Model contém lógica além de CRUD/queries (cálculos, formatação de relatório)
+- `get_relatorio_*()` no model que agrega dados + aplica regras
+
+**Descrição:** Regra de negócio na camada Model. Models devem conter apenas acesso a dados (queries).
+**Impacto:** Viola MVC. Regras de negócio acopladas ao data layer. Difícil testar isoladamente.
+
+**Como resolver:**
+1. Model retorna dados brutos (counts, sums, rows).
+2. Controller/service aplica regras de negócio (cálculos, descontos, formatação).
+3. Model nunca importa Config de negócio.
+
+**Antes:**
+```python
+# model com regra de negócio
+class PedidoModel:
+    def get_relatorio_vendas(self):
+        # ... queries ...
+        desconto = 0
+        for limite, taxa in Config.DESCONTO_TIERS:
+            if faturamento > limite:
+                desconto = faturamento * taxa
+                break
+        return {"faturamento_liquido": faturamento - desconto, ...}
+```
+
+**Depois:**
+```python
+# model — dados brutos
+class PedidoModel:
+    def get_resumo_vendas(self):
+        cursor = self.db.execute("SELECT COUNT(*), COALESCE(SUM(total), 0) FROM pedidos")
+        row = cursor.fetchone()
+        return {"total_pedidos": row[0], "faturamento": row[1]}
+
+# controller — regra de negócio
+class PedidoController:
+    def relatorio_vendas(self):
+        resumo = self.model.get_resumo_vendas()
+        desconto = self._calcular_desconto(resumo["faturamento"])
+        return {**resumo, "desconto": desconto, "liquido": resumo["faturamento"] - desconto}
+```
+
+---
+
+### M-06: Exceção Nativa Interceptada de Forma Abrangente
+
+**Severidade:** MEDIUM
+**Prioridade de resolução:** 3ª — resolver junto com error handling. Mascara bugs reais.
+
+**Sinais de detecção:**
+- `@app.errorhandler(ValueError)` ou `except ValueError` em handler global
+- Exceções built-in do Python tratadas como erro de validação (400)
+- Qualquer exceção genérica que retorna status de client error
+- Controllers usam `raise ValueError()` para erros de validação em vez de exceção customizada
+
+**Descrição:** Handler global intercepta exceção nativa (ValueError, TypeError) e retorna 400. Erros internos do Python (cast failure, parse error) ficam disfarçados de "bad request".
+**Impacto:** Erros internos mascarados como erros de input. Debugging difícil. Stack traces perdidos.
+
+**Como resolver:**
+1. Criar exceção customizada para validação: `class ValidationError(Exception)`.
+2. Controllers devem levantar `ValidationError` para erros de input.
+3. Handler global para `ValueError` deve ir para 500 (erro interno), não 400.
+4. Handler para `ValidationError` retorna 400.
+
+**Antes:**
+```python
+# PROBLEMA — ValueError genérico vira 400
+@app.errorhandler(ValueError)
+def handle_value_error(e):
+    return jsonify({"erro": str(e)}), 400
+
+# controller
+if not nome:
+    raise ValueError("Nome obrigatório")  # mistura com ValueError interno
+```
+
+**Depois:**
+```python
+# CORRETO — exceção customizada
+class ValidationError(Exception):
+    pass
+
+@app.errorhandler(ValidationError)
+def handle_validation(e):
+    return jsonify({"erro": str(e)}), 400
+
+@app.errorhandler(ValueError)
+def handle_value_error(e):
+    logger.error("Internal ValueError: %s", e, exc_info=True)
+    return jsonify({"erro": "Internal server error"}), 500
+
+# controller
+if not nome:
+    raise ValidationError("Nome obrigatório")  # específico
+```
+
+---
+
+### M-07: Acoplamento Direto entre Routes e Database
+
+**Severidade:** MEDIUM
+**Prioridade de resolução:** 4ª — resolver ao melhorar testabilidade. Viola inversão de dependência.
+
+**Sinais de detecção:**
+- Route files importam `get_db()` diretamente
+- `from database import get_db` aparece em múltiplos arquivos de rota
+- Controllers instanciados dentro de handlers com `Controller(get_db())`
+- Injeção de dependência ausente — routes conhecem infraestrutura
+
+**Descrição:** Camada de rotas importa e chama `get_db()` diretamente, criando acoplamento com a infraestrutura de banco.
+**Impacto:** Testes precisam mockar `get_db` em cada route. Trocar DB exige mudar todas as routes. Viola inversão de dependência.
+
+**Como resolver:**
+1. Mover instantiation de controller + db para `before_request` ou factory do app.
+2. Ou usar padrão Application Factory com injeção via `app.config` / extensions.
+3. Routes devem receber controller, não criar.
+
+**Antes:**
+```python
+# route importa database
+from database import get_db
+from controllers.produto_controller import ProdutoController
+
+produto_bp = Blueprint('produtos', __name__)
+
+def _controller():
+    return ProdutoController(get_db())  # acoplado ao database.py
+```
+
+**Depois:**
+```python
+# Opção 1: factory injection
+def create_product_routes(controller):
+    bp = Blueprint('produtos', __name__)
+
+    @bp.route('/produtos', methods=['GET'])
+    def listar():
+        return _api_ok(controller.listar_todos())
+    return bp
+
+# app.py — composition root
+controller = ProdutoController(get_db())
+app.register_blueprint(create_product_routes(controller))
+
+# Opção 2: Flask g-based
+# before_request injeta controller em g.controllers.produto
+```
+
+### M-08: Default de Configuração Inseguro
+
+**Severidade:** MEDIUM
+**Prioridade de resolução:** 3ª — resolver junto com M-02 (debug mode). Default inseguro é mais perigoso que hardcoded porque dá falsa sensação de configurabilidade.
+
+**Sinais de detecção:**
+- `os.environ.get('FLASK_DEBUG', 'true')` — default perigoso (deveria ser 'false')
+- `os.environ.get('SECRET_KEY', '...')` — default não-vazio para segredo
+- Config com `DEBUG=True` como fallback
+- Boolean env vars cujo default favorece dev sobre segurança
+- Comentário "change in production" ao lado de default inseguro
+
+**Descrição:** Variável de configuração com valor default inseguro. Configurável via env mas default é perigoso o suficiente para causar problemas se esquecido.
+**Impacto:** Deploy sem configurar env vars roda em modo inseguro sem warning. Stack traces expostos, debug console ativo.
+
+**Como resolver:**
+1. Defaults devem ser seguros (preferir 'false' para DEBUG, None para segredos).
+2. Se default existe "para conveniência em dev", documentar e proteger com validate().
+3. Testar: subir app sem nenhuma env var configurada — deve estar em modo seguro ou falhar.
+
+**Antes:**
+```python
+# config/settings.py — DEFAULT INSEGURO
+class Config:
+    DEBUG = os.environ.get('FLASK_DEBUG', 'true').lower() in ('true', '1', 'yes')
+    # Sem setar FLASK_DEBUG, app roda em debug!
+```
+
+**Depois:**
+```python
+# config/settings.py — DEFAULT SEGURO
+class Config:
+    DEBUG = os.environ.get('FLASK_DEBUG', 'false').lower() in ('true', '1', 'yes')
+    # Sem setar FLASK_DEBUG, app roda em modo production-safe
+```
+
+---
+
 ## LOW
 
 ### L-01: Magic Numbers
@@ -883,4 +1259,67 @@ logger.info(f"Request body: {request.json}")    # pode conter senha
 ```python
 logger.info(f"Login attempt: email={email}")
 logger.debug(f"User created: id={user_id}")  # apenas identificadores
+```
+
+---
+
+### L-05: Seed Data Misturado com Infraestrutura de DB
+
+**Severidade:** LOW
+**Prioridade de resolução:** 5ª — resolver ao revisar setup/seed. Sem urgência.
+
+**Sinais de detecção:**
+- Função de seed dentro do módulo de conexão/configuração do banco
+- Dados iniciais hardcoded junto com `CREATE TABLE`
+- Senhas padrão de admin previsíveis no seed
+- Seed executado em toda inicialização (verificação `COUNT == 0` antes de inserir)
+
+**Descrição:** Dados de seed (produtos, usuários admin) misturados com módulo de infraestrutura de banco de dados.
+**Impacto:** Viola separação de responsabilidades. Senha admin previsível. Difícil desabilitar seed em produção.
+
+**Como resolver:**
+1. Extrair seed para script separado: `seed.py` ou `scripts/seed.py`.
+2. Seed deve ser invocado explicitamente (`python seed.py`), não em toda inicialização.
+3. Senha admin padrão documentada ou gerada randomicamente no primeiro boot.
+4. Em produção, seed deve ser opt-in via flag ou variável de ambiente.
+
+**Antes:**
+```python
+# database.py — seed misturado com infra
+def get_db():
+    ...
+    _seed_data(_db_connection)  # roda sempre
+
+def _seed_data(db):
+    cursor.executemany("INSERT INTO usuarios ...", [
+        ("Admin", "admin@loja.com", hash("admin123"), "admin"),
+    ])
+```
+
+**Depois:**
+```python
+# seed.py — script separado
+"""Run: python seed.py"""
+from database import get_db
+from werkzeug.security import generate_password_hash
+
+def seed():
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT COUNT(*) FROM produtos")
+    if cursor.fetchone()[0] > 0:
+        print("Seed already applied. Skipping.")
+        return
+    # ... inserir dados ...
+    db.commit()
+    print("Seed complete.")
+
+if __name__ == "__main__":
+    seed()
+
+# database.py — apenas infra
+def get_db():
+    ...
+    _init_schema(_db_connection)
+    # sem seed aqui
 ```
