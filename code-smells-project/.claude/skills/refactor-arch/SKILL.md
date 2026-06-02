@@ -81,6 +81,10 @@ DB tables:     <tabelas detectadas, se aplicável>
 
 Consulte `project-analysis.md` para heurísticas detalhadas de detecção.
 
+Imprima o resumo junto no relatório da fase 2.
+
+Não imprima a última linha da pergunta.
+
 ---
 
 ## FASE 2 — Auditoria
@@ -130,6 +134,7 @@ Siga exatamente o template em `audit-report-template.md`. O relatório deve cont
 ### Passos
 
 1. **Carregar guidelines** — leia `mvc-guidelines.md` para regras de estrutura MVC
+
 2. **Carregar playbook** — leia `refactoring-playbook.md` para padrões de transformação
 
 3. **Planejar estrutura alvo** — com base nos findings, definir:

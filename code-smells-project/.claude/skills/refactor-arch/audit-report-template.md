@@ -8,6 +8,20 @@ Use este template na Fase 2 para gerar o relatório de auditoria.
 
 ```
 ================================
+PHASE 1: PROJECT ANALYSIS
+================================
+Language:      <linguagem>
+Framework:     <framework e versão se disponível>
+Dependencies:  <lista de dependências principais>
+Domain:        <domínio inferido da aplicação>
+Architecture:  <descrição da arquitetura atual>
+Source files:  <N> files analyzed
+DB tables:     <tabelas detectadas, se aplicável>
+================================
+```
+
+```
+================================
 ARCHITECTURE AUDIT REPORT
 ================================
 Project: <nome do projeto>

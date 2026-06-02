@@ -500,8 +500,66 @@ Aqui estão documentados os problemas identificados nos projetos abaixo:
 
 ### Construção da Skill
 
-#### - decisões de design,
-#### - quais anti-patterns incluiu e por quê,
-#### - como garantiu que a skill é agnóstica de tecnologia
+#### Decisões de design (como estruturou o SKILL.md e os arquivos de referência)
 
-#### desafios encontrados.
+- Prompt do SKILL.md estruturado como um 'passo a passo', assim o modelo consegue seguir como se fosse uma receita, evitando desvios.
+- 
+
+### Quais anti-patterns incluiu e por quê
+
+- Utilizando o LLM, gerei o arquivo de anti-patterns-catalog, com base na análise manual, então pode-se dizer que as anti-patterns incluídas são as mesmas que as da análise manual.
+- Conforme iterei algumas vezes com a skill, ainda depois de refatorado foram encontradas outros anti-patterns que foram adicionados no arquivo anti-patterns-catalog.md
+- A lista completa de anti-patterns pode ser consultada em: ![audit-report-template.md](./code-smells-project/.claude/skills/refactor-arch/audit-report-template.md)
+
+### Como garantiu que a skill é agnóstica de tecnologia
+
+### Desafios encontrados
+
+- Foram necessárias várias iterações para que a skill atendesse os requisítos
+
+---
+
+### Seção "Resultados":**
+
+- Resumo dos relatórios de auditoria dos 3 projetos (quantos findings por severidade em cada)
+- Comparação antes/depois da estrutura de cada projeto
+- Checklist de validação preenchido para cada projeto
+- Screenshots ou logs mostrando as aplicações rodando após refatoração
+- Observações sobre como a skill se comportou em stacks diferentes
+
+
+
+
+
+#### Validação
+
+Para cada projeto refatorado, valide o seguinte checklist:
+
+```markdown
+## Checklist de Validação
+
+### Fase 1 — Análise
+- [ ] Linguagem detectada corretamente
+- [ ] Framework detectado corretamente
+- [ ] Domínio da aplicação descrito corretamente
+- [ ] Número de arquivos analisados condiz com a realidade
+
+### Fase 2 — Auditoria
+- [ ] Relatório segue o template definido nos arquivos de referência
+- [ ] Cada finding tem arquivo e linhas exatos
+- [ ] Findings ordenados por severidade (CRITICAL → LOW)
+- [ ] Mínimo de 5 findings identificados
+- [ ] Detecção de APIs deprecated incluída (se aplicável)
+- [ ] Skill pausa e pede confirmação antes da Fase 3
+
+### Fase 3 — Refatoração
+- [ ] Estrutura de diretórios segue padrão MVC
+- [ ] Configuração extraída para módulo de config (sem hardcoded)
+- [ ] Models criados para abstrair dados
+- [ ] Views/Routes separadas para visualização ou roteamento
+- [ ] Controllers concentram o fluxo da aplicação
+- [ ] Error handling centralizado
+- [ ] Entry point claro
+- [ ] Aplicação inicia sem erros
+- [ ] Endpoints originais respondem corretamente
+```
