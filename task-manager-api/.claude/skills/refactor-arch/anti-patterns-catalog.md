@@ -1263,7 +1263,63 @@ logger.debug(f"User created: id={user_id}")  # apenas identificadores
 
 ---
 
-### L-05: Seed Data Misturado com Infraestrutura de DB
+### L-05: Validação Definida Mas Nunca Invocada
+
+**Severidade:** LOW
+**Prioridade de resolução:** 5ª — resolver ao revisar models/routes. Sem impacto funcional imediato, mas dá falsa sensação de segurança.
+
+**Sinais de detecção:**
+- Métodos `validate()` ou `validar()` no model que nunca são chamados nas rotas
+- Funções de sanitização definidas mas não usadas no fluxo de input
+- Assertions ou checks em métodos do model que não são invocados pelo controller
+- Testes que testam validação do model mas a rota bypassa o método
+
+**Descrição:** Métodos de validação existem nos models mas não são chamados pelas rotas/controllers. Input do usuário chega ao banco sem passar pela validação.
+**Impacto:** Falsa sensação de segurança. Dados inválidos podem ser persistidos. Bugs silenciosos.
+
+**Como resolver:**
+1. Mapear todos métodos de validação dos models e verificar onde deveriam ser chamados.
+2. Chamar validação no controller/route **antes** de persistir.
+3. Se validação é obrigatória sempre, mover para dentro do método de persistência do model (fail-safe).
+4. Adicionar teste que verifica que input inválido é rejeitado no endpoint.
+
+**Antes:**
+```python
+# model — validação existe mas é morta
+class UserModel:
+    def validate_email(self, email):
+        if '@' not in email:
+            raise ValueError("Email inválido")
+
+    def create(self, nome, email, senha):
+        # validate_email NUNCA chamado
+        cursor.execute("INSERT INTO users (nome, email, senha) VALUES (?, ?, ?)",
+                       (nome, email, senha))
+```
+
+**Depois:**
+```python
+# Opção 1: controller chama validação
+class UserController:
+    def criar(self, dados):
+        self.model.validate_email(dados['email'])  # explícito
+        return self.model.create(dados['nome'], dados['email'], dados['senha'])
+
+# Opção 2: validação dentro do model (fail-safe)
+class UserModel:
+    def create(self, nome, email, senha):
+        self._validate_email(email)  # sempre roda
+        cursor.execute("INSERT INTO users (nome, email, senha) VALUES (?, ?, ?)",
+                       (nome, email, senha))
+
+    def _validate_email(self, email):
+        if '@' not in email:
+            raise ValidationError("Email inválido")
+```
+
+---
+
+### L-06: Seed Data Misturado com Infraestrutura de DB
 
 **Severidade:** LOW
 **Prioridade de resolução:** 5ª — resolver ao revisar setup/seed. Sem urgência.

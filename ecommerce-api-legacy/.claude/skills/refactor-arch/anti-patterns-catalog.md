@@ -1091,6 +1091,84 @@ class Config:
 
 ---
 
+### M-10: Delete sem Cascata / Dados Órfãos
+
+**Severidade:** MEDIUM
+**Prioridade de resolução:** 4ª — resolver ao tocar em rotas de DELETE. Dados órfãos degradam integridade referencial.
+
+**Sinais de detecção:**
+- DELETE de registro pai sem remover registros filhos
+- FK sem `ON DELETE CASCADE` ou `ON DELETE SET NULL`
+- Dados órfãos após remoção (enrollments sem usuário, pagamentos sem pedido)
+- Rotas de DELETE que só executam 1 query
+
+**Descrição:** Remoção de registro pai não limpa registros filhos relacionados, deixando dados órfãos no banco.
+**Impacto:** Integridade referencial comprometida. Relatórios inconsistentes. Dados fantasmas consumindo storage.
+
+**Como resolver:**
+1. Definir `ON DELETE CASCADE` em FKs onde filho não faz sentido sem pai.
+2. Para soft delete, usar flag `ativo=false` no pai — filhos continuam referenciando.
+3. Em rotas DELETE, explicitar remoção dos filhos antes do pai (transação).
+4. Adicionar teste que verifica ausência de órfãos após DELETE.
+
+**Antes:**
+```python
+# Python/Flask — DELETE sem cascata
+@bp.route('/usuarios/<int:id>', methods=['DELETE'])
+def deletar_usuario(id):
+    db.execute("DELETE FROM usuarios WHERE id = ?", (id,))
+    # matrículas e pagamentos ficam órfãos!
+    db.commit()
+    return jsonify({"sucesso": True})
+```
+
+```javascript
+// Node.js/Express — DELETE sem cascata
+app.delete('/api/users/:id', (req, res) => {
+  db.query('DELETE FROM users WHERE id = ?', [req.params.id]);
+  // enrollments e payments ficam órfãos!
+  res.json({ success: true });
+});
+```
+
+**Depois:**
+```python
+# Python/Flask — DELETE com cascata em transação
+@bp.route('/usuarios/<int:id>', methods=['DELETE'])
+def deletar_usuario(id):
+    try:
+        db.execute("DELETE FROM matriculas WHERE usuario_id = ?", (id,))
+        db.execute("DELETE FROM pagamentos WHERE usuario_id = ?", (id,))
+        db.execute("DELETE FROM usuarios WHERE id = ?", (id,))
+        db.commit()
+        return jsonify({"sucesso": True})
+    except Exception:
+        db.rollback()
+        raise
+```
+
+```javascript
+// Node.js/Express — DELETE com cascata em transação
+app.delete('/api/users/:id', async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query('DELETE FROM enrollments WHERE user_id = ?', [req.params.id]);
+    await conn.query('DELETE FROM payments WHERE user_id = ?', [req.params.id]);
+    await conn.query('DELETE FROM users WHERE id = ?', [req.params.id]);
+    await conn.commit();
+    res.json({ success: true });
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+});
+```
+
+---
+
 ## LOW
 
 ### L-01: Magic Numbers
@@ -1229,10 +1307,10 @@ app.use(express.json());
 
 ---
 
-### L-04: Logs Sensíveis no Console
+### M-09: Logs Sensíveis no Console
 
-**Severidade:** LOW
-**Prioridade de resolução:** 5ª — resolver ao revisar módulos de logging. Risco baixo se logs não são expostos externamente.
+**Severidade:** MEDIUM
+**Prioridade de resolução:** 3ª — resolver junto com segurança. Dados como cartão e gateway em log = vazamento real em produção.
 
 **Sinais de detecção:**
 - `console.log()` com dados sensíveis: senhas, tokens, cartões
@@ -1322,4 +1400,66 @@ def get_db():
     ...
     _init_schema(_db_connection)
     # sem seed aqui
+```
+
+---
+
+### L-06: Ausência de Middleware de Segurança
+
+**Severidade:** LOW
+**Prioridade de resolução:** 5ª — resolver ao configurar deploy. Sem impacto funcional direto, mas aumenta superfície de ataque.
+
+**Sinais de detecção:**
+- Ausência de configuração CORS — qualquer origem aceita
+- Sem limite de tamanho de payload: `express.json()` sem opção `limit`
+- Sem rate limiting em endpoints sensíveis (login, checkout)
+- Headers de segurança ausentes (X-Frame-Options, Content-Type-Options, CSP)
+- Sem Helmet ou equivalente em apps Express
+
+**Descrição:** Nenhum middleware de segurança HTTP configurado (CORS, rate limit, payload size, security headers).
+**Impacto:** Superfície de ataque ampliada. CSRF, DDoS por payload gigante, clickjacking facilitado.
+
+**Como resolver:**
+1. Configurar CORS com whitelist de origens permitidas.
+2. Limitar tamanho de payload no parser de body.
+3. Adicionar rate limiting em endpoints sensíveis.
+4. Usar `helmet` (Express) ou `Talismã` (Flask) para security headers.
+
+**Antes:**
+```javascript
+// Node.js/Express — SEM middleware de segurança
+const express = require('express');
+const app = express();
+
+app.use(express.json());  // sem limite de tamanho, sem CORS, sem headers
+```
+
+**Depois:**
+```javascript
+// Node.js/Express — COM middleware de segurança
+const express = require('express');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const cors = require('cors');
+
+const app = express();
+
+// Security headers
+app.use(helmet());
+
+// CORS restritivo
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+  credentials: true,
+}));
+
+// Payload limit
+app.use(express.json({ limit: '10kb' }));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 100,
+});
+app.use('/api/', limiter);
 ```
