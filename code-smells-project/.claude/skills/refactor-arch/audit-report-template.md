@@ -28,6 +28,16 @@ Project: <nome do projeto>
 Stack:   <linguagem> + <framework>
 Files:   <N> analyzed | ~<X> lines of code
 
+## Project Structure
+<árvore de diretórios atual do projeto, gerada com `tree -I '__pycache__|node_modules|.git|venv|.env' --dirsfirst>
+Exemplo:
+├── app.py
+├── controllers.py
+├── database.py
+├── models.py
+├── requirements.txt
+└── seed.py
+
 ## Summary
 CRITICAL: <n> | HIGH: <n> | MEDIUM: <n> | LOW: <n>
 
@@ -71,6 +81,14 @@ ARCHITECTURE AUDIT REPORT
 Project: code-smells-project
 Stack:   Python + Flask
 Files:   4 analyzed | ~800 lines of code
+
+## Project Structure
+├── app.py
+├── controllers.py
+├── database.py
+├── models.py
+├── requirements.txt
+└── seed.py
 
 ## Summary
 CRITICAL: 4 | HIGH: 5 | MEDIUM: 2 | LOW: 3

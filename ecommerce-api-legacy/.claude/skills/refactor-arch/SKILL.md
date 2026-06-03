@@ -81,6 +81,10 @@ DB tables:     <tabelas detectadas, se aplicável>
 
 Consulte `project-analysis.md` para heurísticas detalhadas de detecção.
 
+Imprima o resumo junto no relatório da fase 2.
+
+Não imprima a última linha da pergunta.
+
 ---
 
 ## FASE 2 — Auditoria
@@ -96,13 +100,15 @@ Consulte `project-analysis.md` para heurísticas detalhadas de detecção.
    - Registre arquivo, linha(s), severidade e descrição
    - Verifique uso de APIs deprecated (métodos obsoletos do framework)
 
-3. **Compilar findings** — ordene por severidade (CRITICAL → HIGH → MEDIUM → LOW)
+3. **Gerar estrutura de pastas** — execute `tree -I '__pycache__|node_modules|.git|venv|.env' --dirsfirst` no diretório do projeto para obter a árvore de diretórios atual
 
-4. **Gerar relatório** — siga o template em `audit-report-template.md`
+4. **Compilar findings** — ordene por severidade (CRITICAL → HIGH → MEDIUM → LOW)
 
-5. **Salvar relatório** — volte uma pasta e crie o diretório `reports/` na pasta pai do projeto (se não existir) e salve o relatório como `reports/audit-report-2.md`, O relatório salvo deve ser idêntico ao apresentado ao usuário.
+5. **Gerar relatório** — siga o template em `audit-report-template.md` (inclui seção "Project Structure" com a árvore gerada no passo 3)
 
-6. **PAUSAR e pedir confirmação** — apresente o relatório e pergunte:
+6. **Salvar relatório** — volte uma pasta e crie o diretório `reports/` na pasta pai do projeto (se não existir) e salve o relatório como `reports/audit-report-1.md` (sobreescreva o arquivo, caso já exista), O relatório salvo deve ser idêntico ao apresentado ao usuário, salve mesmo sem, encontrar algum problema.
+
+7. **PAUSAR e pedir confirmação** — apresente o relatório e pergunte:
 
 ```
 Fase 2 concluída. Prosseguir com a refatoração (Fase 3)? [s/n]
@@ -115,21 +121,23 @@ Fase 2 concluída. Prosseguir com a refatoração (Fase 3)? [s/n]
 Siga exatamente o template em `audit-report-template.md`. O relatório deve conter:
 
 - Header com dados do projeto
+- Seção "Project Structure" com árvore de diretórios atual
 - Summary com contagem por severidade
 - Lista de findings detalhados (arquivo, linha, descrição, impacto, recomendação)
 - Total de findings
-- Relatório salvo em `../reports/audit-report-2.md`
+- Relatório salvo em `../reports/audit-report-1.md`
 - Pergunta de confirmação
 
 ---
 
 ## FASE 3 — Refatoração
 
-**Objetivo:** Reestruturar para o padrão MVC, validar que funciona.
+**Objetivo:** Reestruturar com base no relatório gerado para o padrão MVC, validar que funciona.
 
 ### Passos
 
 1. **Carregar guidelines** — leia `mvc-guidelines.md` para regras de estrutura MVC
+
 2. **Carregar playbook** — leia `refactoring-playbook.md` para padrões de transformação
 
 3. **Planejar estrutura alvo** — com base nos findings, definir:
@@ -152,14 +160,16 @@ Siga exatamente o template em `audit-report-template.md`. O relatório deve cont
    - Testar cada endpoint original — todos devem continuar respondendo
    - Se falhar, corrigir e re-testar
 
-7. **Imprimir resultado:**
+7. **Gerar nova estrutura de pastas** — execute `tree -I '__pycache__|node_modules|.git|venv|.env' --dirsfirst` no diretório do projeto para obter a árvore de diretórios refatorada
+
+8. **Imprimir resultado:**
 
 ```
 ================================
 PHASE 3: REFACTORING COMPLETE
 ================================
 ## New Project Structure
-<árvore de diretórios>
+<árvore de diretórios gerada no passo 7>
 
 ## Validation
   ✓ Application boots without errors
@@ -180,3 +190,34 @@ A Fase 3 SÓ está completa quando:
 - [ ] Entry point claro (composition root)
 
 Se a validação falhar, corrija e re-teste até passar.
+
+9. **Marcar e imprimir o seguinte checklist de validação após todas as etapas:**
+
+```markdown
+## Checklist de Validação
+
+### Fase 1 — Análise
+- [ ] Linguagem detectada corretamente
+- [ ] Framework detectado corretamente
+- [ ] Domínio da aplicação descrito corretamente
+- [ ] Número de arquivos analisados condiz com a realidade
+
+### Fase 2 — Auditoria
+- [ ] Relatório segue o template definido nos arquivos de referência
+- [ ] Cada finding tem arquivo e linhas exatos
+- [ ] Findings ordenados por severidade (CRITICAL → LOW)
+- [ ] Mínimo de 5 findings identificados
+- [ ] Detecção de APIs deprecated incluída (se aplicável)
+- [ ] Skill pausa e pede confirmação antes da Fase 3
+
+### Fase 3 — Refatoração
+- [ ] Estrutura de diretórios segue padrão MVC
+- [ ] Configuração extraída para módulo de config (sem hardcoded)
+- [ ] Models criados para abstrair dados
+- [ ] Views/Routes separadas para visualização ou roteamento
+- [ ] Controllers concentram o fluxo da aplicação
+- [ ] Error handling centralizado
+- [ ] Entry point claro
+- [ ] Aplicação inicia sem erros
+- [ ] Endpoints originais respondem corretamente
+```

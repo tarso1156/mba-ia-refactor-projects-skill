@@ -502,64 +502,119 @@ Aqui estão documentados os problemas identificados nos projetos abaixo:
 
 #### Decisões de design (como estruturou o SKILL.md e os arquivos de referência)
 
-- Prompt do SKILL.md estruturado como um 'passo a passo', assim o modelo consegue seguir como se fosse uma receita, evitando desvios.
-- 
+- Usando as técnincas aprendidas na disciplina de "prompt engineering", estruturei a skill como um 'passo a passo', assim o modelo consegue seguir como se fosse uma receita, evitando desvios.
+- Logo no início foi adicionada uma sessão com os arquivos e suas funções, para que o modelo use como referência.
+- Quanto a estrutura dos arquivos, ficou tudo na raiz mesmo. Não encontrei a necessidade de segmentar em subpastas, já que estava tudo devidamente documentado para o modelo.
+- Adicionadas também as regras gerais para controlar as bounds do modelo que consumirá a skill.
 
 ### Quais anti-patterns incluiu e por quê
 
-- Utilizando o LLM, gerei o arquivo de anti-patterns-catalog, com base na análise manual, então pode-se dizer que as anti-patterns incluídas são as mesmas que as da análise manual.
+- Com o auxílio da LLM cruzei o resultado da análise manual e gerei o arquivo de anti-patterns-catalog.md, então pode-se dizer que as anti-patterns incluídas são as mesmas que as da análise manual.
 - Conforme iterei algumas vezes com a skill, ainda depois de refatorado foram encontradas outros anti-patterns que foram adicionados no arquivo anti-patterns-catalog.md
-- A lista completa de anti-patterns pode ser consultada em: ![audit-report-template.md](./code-smells-project/.claude/skills/refactor-arch/audit-report-template.md)
+- Para o README.md não ficar tão grande, a lista completa de anti-patterns pode ser consultada em: [anti-patterns-catalog.md](/code-smells-project/.claude/skills/refactor-arch/anti-patterns-catalog.md) (A mesma lista foi utilizada nos três projetos)
 
 ### Como garantiu que a skill é agnóstica de tecnologia
 
+- Forneci exemplos de como detectar cada linguagem/framework para identificar parte da stack, exemplo:
+```
+1. **Detectar linguagem** — procure por:
+   - `requirements.txt`, `.py`, `import flask` → Python
+   - `package.json`, `.js`, `require('express')` → Node.js
+   - `Gemfile`, `.rb` → Ruby
+   - `pom.xml`, `.java` → Java
+   - `composer.json`, `.php` → PHP
+
+2. **Detectar framework** — procure por:
+   - Python: `flask`, `django`, `fastapi` em requirements.txt ou imports
+   - Node.js: `express`, `koa`, `hapi`, `nest` em package.json ou imports
+   - Outros: verificar dependências do ecossistema detectado
+
+```
+
 ### Desafios encontrados
 
-- Foram necessárias várias iterações para que a skill atendesse os requisítos
+- A skill as vezes não atingia a qualidade necessária, por isso foram necessárias várias iterações para que a mesma atendesse os requisítos
+- Foram necessários alguns ajutes nos arquivos de referência da skill, sendo necessário, por exemplo, atualizar o anti-patterns-catalog.md constantemente quando novos problemas eram encontrados.
 
 ---
 
-### Seção "Resultados":**
+### Resultados
 
-- Resumo dos relatórios de auditoria dos 3 projetos (quantos findings por severidade em cada)
-- Comparação antes/depois da estrutura de cada projeto
-- Checklist de validação preenchido para cada projeto
-- Screenshots ou logs mostrando as aplicações rodando após refatoração
-- Observações sobre como a skill se comportou em stacks diferentes
+#### Resumo dos relatórios de auditoria dos 3 projetos (quantos findings por severidade em cada)
 
+| Projeto | Findings |
+|---|---|
+| code-smells-project | Total: 22 findings / CRITICAL: 5 / HIGH: 6 / MEDIUM: 6 / LOW: 5 |
 
+---
 
+#### Comparação antes/depois da estrutura de cada projeto
 
+| Projeto | Antes | Depois |
+|---|---|---|
+| code-smells-project | [Antes](/entregaveis/code-smells-project/estrutura-pre.jpg) | [Depois](/entregaveis/code-smells-project/estrutura-pos.jpg) |
 
-#### Validação
+---
 
-Para cada projeto refatorado, valide o seguinte checklist:
+#### Checklist de validação preenchido para cada projeto
+
+##### code-smells-project:
 
 ```markdown
-## Checklist de Validação
+  Fase 1 — Análise
 
-### Fase 1 — Análise
-- [ ] Linguagem detectada corretamente
-- [ ] Framework detectado corretamente
-- [ ] Domínio da aplicação descrito corretamente
-- [ ] Número de arquivos analisados condiz com a realidade
+  - [x] Linguagem detectada corretamente
+  - [x] Framework detectado corretamente
+  - [x] Domínio da aplicação descrito corretamente
+  - [x] Número de arquivos analisados condiz com a realidade
 
-### Fase 2 — Auditoria
-- [ ] Relatório segue o template definido nos arquivos de referência
-- [ ] Cada finding tem arquivo e linhas exatos
-- [ ] Findings ordenados por severidade (CRITICAL → LOW)
-- [ ] Mínimo de 5 findings identificados
-- [ ] Detecção de APIs deprecated incluída (se aplicável)
-- [ ] Skill pausa e pede confirmação antes da Fase 3
+  Fase 2 — Auditoria
 
-### Fase 3 — Refatoração
-- [ ] Estrutura de diretórios segue padrão MVC
-- [ ] Configuração extraída para módulo de config (sem hardcoded)
-- [ ] Models criados para abstrair dados
-- [ ] Views/Routes separadas para visualização ou roteamento
-- [ ] Controllers concentram o fluxo da aplicação
-- [ ] Error handling centralizado
-- [ ] Entry point claro
-- [ ] Aplicação inicia sem erros
-- [ ] Endpoints originais respondem corretamente
+  - [x] Relatório segue o template definido nos arquivos de referência
+  - [x] Cada finding tem arquivo e linhas exatos
+  - [x] Findings ordenados por severidade (CRITICAL → LOW)
+  - [x] Mínimo de 5 findings identificados
+  - [x] Detecção de APIs deprecated incluída (se aplicável)
+  - [x] Skill pausa e pede confirmação antes da Fase 3
+
+  Fase 3 — Refatoração
+
+  - [x] Estrutura de diretórios segue padrão MVC
+  - [x] Configuração extraída para módulo de config (sem hardcoded)
+  - [x] Models criados para abstrair dados
+  - [x] Views/Routes separadas para visualização ou roteamento
+  - [x] Controllers concentram o fluxo da aplicação
+  - [x] Error handling centralizado
+  - [x] Entry point claro
+  - [x] Aplicação inicia sem erros
+  - [x] Endpoints originais respondem corretamente
 ```
+
+---
+
+#### Screenshots ou logs mostrando as aplicações rodando após refatoração
+
+##### [code-smells-project](/entregaveis/code-smells-project/rodando.jpg)
+
+---
+
+#### Observações sobre como a skill se comportou em stacks diferentes
+
+- No app em node (ecommerce-api-legacy) consumiu mais tokens para refatorar
+
+---
+
+#### Como Executar
+
+##### 1. Pré-requisitos
+
+- Claude Code devidamente configurado.
+- [Guia de Instalação](https://code.claude.com/docs/en/quickstart#before-you-begin)
+
+##### 2. Executando skill
+
+- 
+
+
+Comandos para executar a skill em cada projeto
+Como validar que a refatoração funcionou

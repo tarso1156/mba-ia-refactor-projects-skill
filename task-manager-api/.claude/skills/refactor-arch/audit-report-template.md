@@ -8,11 +8,35 @@ Use este template na Fase 2 para gerar o relatório de auditoria.
 
 ```
 ================================
+PHASE 1: PROJECT ANALYSIS
+================================
+Language:      <linguagem>
+Framework:     <framework e versão se disponível>
+Dependencies:  <lista de dependências principais>
+Domain:        <domínio inferido da aplicação>
+Architecture:  <descrição da arquitetura atual>
+Source files:  <N> files analyzed
+DB tables:     <tabelas detectadas, se aplicável>
+================================
+```
+
+```
+================================
 ARCHITECTURE AUDIT REPORT
 ================================
 Project: <nome do projeto>
 Stack:   <linguagem> + <framework>
 Files:   <N> analyzed | ~<X> lines of code
+
+## Project Structure
+<árvore de diretórios atual do projeto, gerada com `tree -I '__pycache__|node_modules|.git|venv|.env' --dirsfirst>
+Exemplo:
+├── app.py
+├── controllers.py
+├── database.py
+├── models.py
+├── requirements.txt
+└── seed.py
 
 ## Summary
 CRITICAL: <n> | HIGH: <n> | MEDIUM: <n> | LOW: <n>
@@ -57,6 +81,14 @@ ARCHITECTURE AUDIT REPORT
 Project: code-smells-project
 Stack:   Python + Flask
 Files:   4 analyzed | ~800 lines of code
+
+## Project Structure
+├── app.py
+├── controllers.py
+├── database.py
+├── models.py
+├── requirements.txt
+└── seed.py
 
 ## Summary
 CRITICAL: 4 | HIGH: 5 | MEDIUM: 2 | LOW: 3
@@ -150,6 +182,4 @@ Recommendation: Remover dados sensíveis do health check ou proteger com auth.
 ================================
 Total: 14 findings
 ================================
-
-Phase 2 complete. Proceed with refactoring (Phase 3)? [y/n]
 ```
