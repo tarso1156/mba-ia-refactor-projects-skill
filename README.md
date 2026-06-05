@@ -528,7 +528,6 @@ Aqui estão documentados os problemas identificados nos projetos abaixo:
    - Python: `flask`, `django`, `fastapi` em requirements.txt ou imports
    - Node.js: `express`, `koa`, `hapi`, `nest` em package.json ou imports
    - Outros: verificar dependências do ecossistema detectado
-
 ```
 
 ### Desafios encontrados
@@ -545,6 +544,7 @@ Aqui estão documentados os problemas identificados nos projetos abaixo:
 | Projeto | Findings |
 |---|---|
 | code-smells-project | Total: 22 findings / CRITICAL: 5 / HIGH: 6 / MEDIUM: 6 / LOW: 5 |
+| ecommerce-api-legacy | Total: 14 findings / CRITICAL: 3 / HIGH: 3 / MEDIUM: 4 / LOW: 4 |
 
 ---
 
@@ -553,6 +553,7 @@ Aqui estão documentados os problemas identificados nos projetos abaixo:
 | Projeto | Antes | Depois |
 |---|---|---|
 | code-smells-project | [Antes](/entregaveis/code-smells-project/estrutura-pre.jpg) | [Depois](/entregaveis/code-smells-project/estrutura-pos.jpg) |
+| ecommerce-api-legacy | [Antes](/entregaveis/ecommerce-api-legacy/estrutura-pre.jpg) | [Depois](/entregaveis/ecommerce-api-legacy/estrutura-pos.jpg) |
 
 ---
 
@@ -590,11 +591,44 @@ Aqui estão documentados os problemas identificados nos projetos abaixo:
   - [x] Endpoints originais respondem corretamente
 ```
 
+##### ecommerce-api-legacy
+
+```markdown
+  Fase 1 — Análise
+
+  - [x] Linguagem detectada corretamente (JavaScript/Node.js)
+  - [x] Framework detectado corretamente (Express ^4.18.2)
+  - [x] Domínio da aplicação descrito corretamente (E-commerce LMS)
+  - [x] Número de arquivos analisados condiz com a realidade (3 files)
+
+  Fase 2 — Auditoria
+
+  - [x] Relatório segue o template definido nos arquivos de referência
+  - [x] Cada finding tem arquivo e linhas exatos
+  - [x] Findings ordenados por severidade (CRITICAL → LOW)
+  - [x] Mínimo de 5 findings identificados (14 encontrados)
+  - [x] Detecção de APIs deprecated incluídas (callback-based sqlite3)
+  - [x] Skill pausa e pede confirmação antes da Fase 3
+
+  Fase 3 — Refatoração
+
+  - [x] Estrutura de diretórios segue padrão MVC
+  - [x] Configuração extraída para módulo de config (sem hardcoded)
+  - [x] Models criados para abstrair dados (User, Course, Enrollment, Payment, AuditLog)
+  - [x] Views/Routes separadas para roteamento (checkout, report, user)
+  - [x] Controllers concentram o fluxo da aplicação (Checkout, Report, User)
+  - [x] Error handling centralizado (errorHandler middleware)
+  - [x] Entry point claro (app.js como composition root)
+  - [x] Aplicação inicia sem erros
+  - [x] Endpoints originais respondem corretamente
+```
+
 ---
 
 #### Screenshots ou logs mostrando as aplicações rodando após refatoração
 
 ##### [code-smells-project](/entregaveis/code-smells-project/rodando.jpg)
+##### [ecommerce-api-legacy](/entregaveis/ecommerce-api-legacy/rodando.jpg)
 
 ---
 
